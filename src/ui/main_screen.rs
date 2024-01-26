@@ -14,9 +14,7 @@ pub fn main_screen() -> Result<(), Error> {
     .map_err(|_e| Error {})
 }
 
-struct MainScreen {
-    label: String,
-}
+struct MainScreen {}
 
 impl eframe::App for MainScreen {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
@@ -39,9 +37,7 @@ impl eframe::App for MainScreen {
 
 impl Default for MainScreen {
     fn default() -> Self {
-        Self {
-            label: "hi".to_owned(),
-        }
+        Self {}
     }
 }
 
