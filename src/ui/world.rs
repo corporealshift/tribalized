@@ -22,10 +22,7 @@ fn fill_for_tile(tile: &Tile) -> Color32 {
 }
 
 fn top_left_for_tile(offset: Pos2, x: u16, y: u16) -> Pos2 {
-    Pos2::new(
-        offset.x + f32::from(x) * 10.0,
-        offset.y + f32::from(y) * 10.0,
-    )
+    Pos2::new(offset.x + f32::from(x) * 8.0, offset.y + f32::from(y) * 8.0)
 }
 
 impl WorldView {
@@ -49,7 +46,7 @@ impl WorldView {
                 egui::Shape::Rect(rect_shape)
             })
             .collect::<Vec<egui::Shape>>();
-        //println!("--------------DRAWING-----------------");
+        // println!("--------------DRAWING-----------------");
 
         painter.extend(shapes);
 

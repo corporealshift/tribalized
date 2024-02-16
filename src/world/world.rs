@@ -64,22 +64,23 @@ pub struct World {
 // use a range of 4 for the curve. so for pt 1, y_offset = y_prime(start)
 // for pt 2, y_offset = y_offset(start + x/25))
 // river bed is seed > 10 ? seed / 10 : seed
+
+// Finds a given y on a curve to use for a river. angle is used to make
+// it so the curve doesn't always move exactly left to right
 fn calculate_y_offset(x: f32, angle: f32) -> f32 {
-    // s = tan(sqrt(ln(x)))*sin(x)
     let s = x.sin() * (x.ln_1p().sqrt().tan());
     let s2 = (x.powf(s.cos())).log10();
     (1.0 / s) * ((x * 2.0).sin() * s2) + (angle * x)
 }
 
 fn generate_river(seed: u16, map_size: u16) -> Vec<(u16, u16)> {
-    let fseed = f32::from(seed);
+    let fseed: f32 = seed.into();
+    let fmap: f32 = map_size.into();
     let river_bed_width = if seed > 10 { seed / 10 } else { seed };
-    //let angle_seed = if fseed < 10.0 { fseed * 5.0 } else { fseed };
     // Angle should be between -2 and +2
-    let angle = (fseed / 100.0) * 4.0 - 2.0;
-    //let angle = 2.0; //(100.0 / angle_seed) / 10.0;
+    let angle = (fseed / fmap) * 4.0 - 2.0;
     // River width is between 3 and 7
-    let river_width = ((fseed / 100.0) * 4.0 + 3.0) as u16;
+    let river_width = ((fseed / fmap) * 4.0 + 3.0) as u16;
     let river_bed_start = if seed + river_bed_width > map_size {
         seed / 10
     } else {
@@ -93,19 +94,19 @@ fn generate_river(seed: u16, map_size: u16) -> Vec<(u16, u16)> {
         river_bed_width, river_bed_start, river_width, angle
     );
     for x in 1..map_size {
-        let curve_x: f32 = f32::from(curve_x_start) + f32::from(x) / 25.0;
+        let curve_x: f32 = curve_x_start as f32 + x as f32 / 25.0;
         let curve_value = calculate_y_offset(curve_x, angle);
-        let mut y = f32::from(river_bed_start) + curve_value * f32::from(river_bed_width);
+        let mut y = river_bed_start as f32 + curve_value * river_bed_width as f32;
         println!("Y: {}", y);
-        while y > 100.0 {
-            y = y - 100.0;
+        while y > fmap {
+            y = y - fmap;
         }
         while y < 0.0 {
-            y = y + 100.0;
+            y = y + fmap;
         }
         for ys in 1..=river_width {
-            let y1 = y + f32::from(ys);
-            if y1 <= 99.0 && y1 > 2.0 {
+            let y1 = y + ys as f32;
+            if y1 <= fmap - 1.0 && y1 > 2.0 {
                 river_coords.push((x, y1 as u16));
             }
         }
@@ -117,7 +118,7 @@ fn generate_river(seed: u16, map_size: u16) -> Vec<(u16, u16)> {
 // Forests grow near the river(s), with some amount of variation based on the
 // seed. River coordinates are provided to decide if the provided x,y should
 // be a forest or not.
-fn generate_forests(seed: u16) -> Vec<(u16, u16)> {
+fn generate_forests(rivers: &Vec<(u16, u16)>, seed: u16) -> Vec<(u16, u16)> {
     vec![]
 }
 
@@ -126,8 +127,11 @@ impl World {
         println!("World Seed: {}", seed);
         let mut tiles = HashMap::new();
         // Generate a predefined world for now
-        let rivers = generate_river(seed, 100);
-        let forests = generate_forests(seed);
+        let mut rivers = generate_river(seed, 100);
+        let mut river2 = generate_river(seed / 2, 100);
+        rivers.append(&mut river2);
+
+        let forests = generate_forests(&rivers, seed);
         let max = 100;
         for y in 1..max {
             for x in 1..max {
