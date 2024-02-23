@@ -144,7 +144,7 @@ fn generate_forests(rivers: &Vec<(u16, u16)>, seed: u16, map_size: u16) -> Vec<(
     }
     //let forest_centers = rivers.iter().filter(|(x, y)| y >= seed).map(|river| {});
     // Using the seed, generate some random spots for forests too
-    let num_others = if seed > 10 { seed / 7 } else { seed + 5 };
+    let num_others = if seed < 30 { seed } else { seed / 2 };
     let mut last_picked_front = true;
     for i in 1..num_others {
         //
@@ -154,11 +154,15 @@ fn generate_forests(rivers: &Vec<(u16, u16)>, seed: u16, map_size: u16) -> Vec<(
             start as usize
         } else {
             last_picked_front = true;
-            forest_cores.len() - start as usize
+            if start as usize >= forest_cores.len() {
+                forest_cores.len() - 1
+            } else {
+                forest_cores.len() - start as usize
+            }
         };
         let mut new_x = forest_cores
             .get(idx as usize)
-            .map(|(x, y)| y.clone())
+            .map(|(x, y)| if i % 2 == 0 { y.clone() } else { x.clone() })
             .unwrap_or(2);
         if new_x > 99 {
             new_x = i * 4;
