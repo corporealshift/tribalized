@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+type Position = (u16, u16);
+
 #[derive(PartialEq, Debug)]
 pub enum Terrain {
     Grass,
@@ -50,7 +52,9 @@ fn forest_tile(contents: Option<Placeable>) -> Tile {
 }
 #[derive(Debug)]
 pub struct World {
-    pub map: HashMap<(u16, u16), Tile>,
+    pub map: HashMap<Position, Tile>,
+    pub map_contents: HashMap<Position, Placeable>,
+    pub spawns: Vec<Position>,
 }
 
 // Finds a given y on a curve to use for a river. angle is used to make
@@ -61,7 +65,7 @@ fn calculate_y_offset(x: f32, angle: f32) -> f32 {
     (1.0 / s) * ((x * 2.0).sin() * s2) + (angle * x)
 }
 
-fn generate_river(seed: u16, map_size: u16) -> Vec<(u16, u16)> {
+fn generate_river(seed: u16, map_size: u16) -> Vec<Position> {
     let fseed: f32 = seed.into();
     let fmap: f32 = map_size.into();
     let river_bed_width = if seed > 10 { seed / 10 } else { seed };
@@ -111,10 +115,10 @@ fn generate_river(seed: u16, map_size: u16) -> Vec<(u16, u16)> {
 // Forests grow near the river(s), with some amount of variation based on the
 // seed. River coordinates are provided to decide if the provided x,y should
 // be a forest or not.
-fn generate_forests(rivers: &Vec<(u16, u16)>, seed: u16, map_size: u16) -> Vec<(u16, u16)> {
+fn generate_forests(rivers: &Vec<Position>, seed: u16, map_size: u16) -> Vec<(u16, u16)> {
     // More forests the higher the seed
     let forest_probability = seed / 10;
-    let mut forest_cores: Vec<(u16, u16)> = vec![];
+    let mut forest_cores: Vec<Position> = vec![];
     // for every 1/3 river point, AND we haven't added a forest in <probability>,
     let mut iters_since_added = 0;
     for (x, y) in rivers.iter() {
@@ -181,7 +185,7 @@ fn generate_forests(rivers: &Vec<(u16, u16)>, seed: u16, map_size: u16) -> Vec<(
         forest_cores.push((new_x, new_y));
     }
     // using forest_cores, generate thick forests
-    let mut forests: Vec<(u16, u16)> = vec![];
+    let mut forests: Vec<Position> = vec![];
     let forest_thickness = if seed % 7 < 3 { 3 } else { seed % 7 };
     for (c_x, c_y) in forest_cores {
         forests.push((c_x, c_y));
@@ -240,6 +244,46 @@ fn generate_forests(rivers: &Vec<(u16, u16)>, seed: u16, map_size: u16) -> Vec<(
     forests
 }
 
+fn find_spawns(map_size: u16, map: &HashMap<Position, Tile>) -> Vec<Position> {
+    let offset = map_size / 8;
+
+    let start_positions = vec![
+        (offset, offset),
+        (map_size - offset, offset),
+        (offset, map_size - offset),
+        (map_size - offset, map_size - offset),
+    ];
+    start_positions
+        .iter()
+        .map(|pos| closest_valid_position(map, pos))
+        .filter(|pos| pos.is_some())
+        .map(|pos| pos.unwrap())
+        .collect()
+}
+
+fn closest_valid_position(map: &HashMap<Position, Tile>, start: &Position) -> Option<Position> {
+    let mut pos: Position = start.clone();
+    let mut iters = 0;
+    while (iters < 10
+        && (map.get(&pos).is_none()
+            || map
+                .get(&pos)
+                .is_some_and(|t| t.terrain == Terrain::Mountain || t.terrain == Terrain::Water)))
+    {
+        iters += 1;
+        if pos.0 > 50 {
+            pos = (pos.0 - 1, pos.1 - 1);
+        } else {
+            pos = (pos.0 + 1, pos.1 + 1);
+        }
+    }
+    if iters == 10 {
+        None
+    } else {
+        Some(pos)
+    }
+}
+
 impl World {
     pub fn new(seed: u16) -> World {
         println!("World Seed: {}", seed);
@@ -274,6 +318,11 @@ impl World {
                 tiles.insert((x, y), new_tile);
             }
         }
-        Self { map: tiles }
+        let spawns = find_spawns(map_size, &tiles);
+        Self {
+            map: tiles,
+            map_contents: HashMap::new(),
+            spawns,
+        }
     }
 }
