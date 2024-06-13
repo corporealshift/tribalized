@@ -11,7 +11,7 @@ pub enum Terrain {
 }
 
 #[derive(PartialEq, Debug)]
-pub enum Placeable {
+pub enum Positionable {
     Individual,
     Structure,
     Item,
@@ -20,31 +20,85 @@ pub enum Placeable {
 #[derive(PartialEq, Debug)]
 pub struct Tile {
     pub terrain: Terrain,
-    pub contents: Option<Placeable>,
+    pub contents: Vec<Positionable>,
+}
+
+impl Tile {
+    pub fn is_grass(&self) -> bool {
+        matches!(self.terrain, Terrain::Grass)
+    }
+
+    pub fn is_forest(&self) -> bool {
+        matches!(self.terrain, Terrain::Forest)
+    }
+
+    pub fn is_water(&self) -> bool {
+        matches!(self.terrain, Terrain::Water)
+    }
+
+    pub fn is_mountain(&self) -> bool {
+        matches!(self.terrain, Terrain::Mountain)
+    }
+
+    pub fn occupant(&self) -> Option<&Positionable> {
+        self.contents
+            .iter()
+            .find(|p| matches!(p, Positionable::Individual))
+    }
+
+    pub fn can_occupy(&self) -> bool {
+        self.occupant().is_none() && !self.is_mountain()
+    }
+
+    pub fn occupy(&self, indv: Positionable) -> bool {
+        if self.can_occupy() && matches!(indv, Positionable::Individual) {
+            self.contents.push(indv);
+            return true;
+        }
+        false
+    }
+
+    pub fn curr_structure(&self) -> Option<&Positionable> {
+        self.contents
+            .iter()
+            .find(|p| matches!(p, Positionable::Structure))
+    }
+
+    pub fn can_build(&self) -> bool {
+        self.curr_structure().is_none() && (self.is_grass() || self.is_forest())
+    }
+
+    pub fn build(&self, structure: Positionable) -> bool {
+        if self.can_build() && matches!(structure, Positionable::Structure) {
+            self.contents.push(structure);
+            return true;
+        }
+        return false;
+    }
 }
 
 fn mountain_tile() -> Tile {
     Tile {
         terrain: Terrain::Mountain,
-        contents: None,
+        contents: vec![],
     }
 }
 
-fn grassland_tile(contents: Option<Placeable>) -> Tile {
+fn grassland_tile(contents: Vec<Positionable>) -> Tile {
     Tile {
         terrain: Terrain::Grass,
         contents,
     }
 }
 
-fn water_tile(contents: Option<Placeable>) -> Tile {
+fn water_tile(contents: Vec<Positionable>) -> Tile {
     Tile {
         terrain: Terrain::Water,
         contents,
     }
 }
 
-fn forest_tile(contents: Option<Placeable>) -> Tile {
+fn forest_tile(contents: Vec<Positionable>) -> Tile {
     Tile {
         terrain: Terrain::Forest,
         contents,
@@ -53,7 +107,7 @@ fn forest_tile(contents: Option<Placeable>) -> Tile {
 #[derive(Debug)]
 pub struct World {
     pub map: HashMap<Position, Tile>,
-    pub map_contents: HashMap<Position, Placeable>,
+    pub map_contents: HashMap<Position, Positionable>,
     pub spawns: Vec<Position>,
 }
 
@@ -302,14 +356,14 @@ impl World {
                 let tile_coord = (x, y);
 
                 if y > 1 && y < max - 1 && x > 1 && x < max - 1 {
-                    new_tile = grassland_tile(None);
+                    new_tile = grassland_tile(vec![]);
                 }
                 if x > 1 && x < max - 1 {
                     if forests.contains(&tile_coord) {
-                        new_tile = forest_tile(None);
+                        new_tile = forest_tile(vec![]);
                     }
                     if rivers.contains(&tile_coord) {
-                        new_tile = water_tile(None);
+                        new_tile = water_tile(vec![]);
                     }
                 }
                 if x == 1 || x == max - 1 || y == 1 || y == max - 1 {
